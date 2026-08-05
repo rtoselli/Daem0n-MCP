@@ -76,29 +76,81 @@ del _sys, _this, _name
 logger = logging.getLogger(__name__)
 register_ui_resources(mcp)
 # --- Re-export ALL public symbols (imports also trigger @mcp.tool registration) ---
-from .tools.agency_tools import (
-    ingest_doc,  # noqa: F401
+from .tools.agency_tools import (  # noqa: F401
+    ALLOWED_URL_SCHEMES,
+    INGEST_TIMEOUT,
+    MAX_CHUNKS,
+    MAX_CONTENT_SIZE,
+    _capability_manager,
+    _chunk_markdown_content,
+    _fetch_and_extract,
+    _resolve_public_ips,
+    _sandbox_executor,
+    _validate_url,
+    compress_context,
+    execute_python,
+    ingest_doc,
 )
-from .tools.briefing import (
-    get_covenant_status,  # noqa: F401
+from .tools.briefing import (  # noqa: F401
+    _bootstrap_project_context,
+    _extract_architecture,
+    _extract_conventions,
+    _extract_entry_points,
+    _extract_project_identity,
+    _extract_project_instructions,
+    _get_git_changes,
+    _prefetch_focus_areas,
+    _scan_todos_for_bootstrap,
+    check_for_updates,
+    context_check,
+    get_briefing,
+    get_briefing_visual,
+    get_covenant_status,
+    get_covenant_status_visual,
+    health,
 )
-from .tools.code_tools import (
-    analyze_impact,  # noqa: F401
+from .tools.code_tools import (  # noqa: F401
+    TODO_PATTERN,
+    _scan_for_todos,
+    analyze_impact,
+    find_code,
+    index_project,
+    propose_refactor,
+    scan_todos,
 )
 from .tools.cognitive_tools import (  # noqa: F401
     debate_internal,
     evolve_rule,
     simulate_decision,
 )
-from .tools.context_tools import (
-    get_active_context,  # noqa: F401
+from .tools.context_tools import (  # noqa: F401
+    add_context_trigger,
+    check_context_triggers,
+    clear_active_context,
+    get_active_context,
+    list_context_triggers,
+    remove_context_trigger,
+    remove_from_active_context,
+    set_active_context,
 )
 from .tools.entity_tools import backfill_entities, list_entities  # noqa: F401
-from .tools.federation import (
-    unlink_projects,  # noqa: F401
+from .tools.federation import (  # noqa: F401
+    consolidate_linked_databases,
+    link_projects,
+    list_linked_projects,
+    unlink_projects,
 )
-from .tools.graph_tools import (
-    get_graph,  # noqa: F401
+from .tools.graph_tools import (  # noqa: F401
+    get_community_details,
+    get_graph,
+    get_graph_stats,
+    get_graph_visual,
+    link_memories,
+    list_communities,
+    list_communities_visual,
+    rebuild_communities,
+    trace_chain,
+    unlink_memories,
 )
 from .tools.maintenance import (  # noqa: F401
     export_data,
@@ -106,17 +158,49 @@ from .tools.maintenance import (  # noqa: F401
     prune_memories,
     rebuild_index,
 )
-from .tools.memory import (
-    recall_visual,  # noqa: F401
+from .tools.memory import (  # noqa: F401
+    archive_memory,
+    cleanup_memories,
+    compact_memories,
+    find_related,
+    get_memory_at_time,
+    get_memory_versions,
+    get_related_memories,
+    pin_memory,
+    recall,
+    recall_by_entity,
+    recall_for_file,
+    recall_hierarchical,
+    recall_visual,
+    record_outcome,
+    remember,
+    remember_batch,
+    search_memories,
 )
-from .tools.resources import (
-    _failed_resource_impl,  # noqa: F401
+from .tools.resources import (  # noqa: F401
+    _context_resource_impl,
+    _failed_resource_impl,
+    _rules_resource_impl,
+    _warnings_resource_impl,
+    context_resource,
+    failed_resource,
+    get_triggered_context_resource,
+    rules_resource,
+    triggered_context_resource,
+    warnings_resource,
 )
 from .tools.rules import add_rule, check_rules, list_rules, update_rule  # noqa: F401
 from .tools.temporal import trace_causal_path, trace_evolution  # noqa: F401
 from .tools.verification import verify_facts  # noqa: F401
-from .tools.workflows import (
-    reflect,  # noqa: F401
+from .tools.workflows import (  # noqa: F401
+    commune,
+    consult,
+    explore,
+    govern,
+    inscribe,
+    maintain,
+    reflect,
+    understand,
 )
 
 # --- Remove deprecated individual tools from MCP registry ---
