@@ -424,6 +424,23 @@ class TreeSitterIndexer:
                 signature = self._extract_signature(def_node, source)
                 docstring = self._extract_docstring(def_node, source, lang)
 
+                try:
+                    calls = (
+                        self._extract_calls(def_node)
+                        if entity_type in self.CALLS_FOR_TYPES
+                        else []
+                    )
+                    inherits = (
+                        self._extract_inherits(def_node)
+                        if entity_type in self.BASES_FOR_TYPES
+                        else []
+                    )
+                except Exception as e:
+                    logger.debug(
+                        f"Graph extraction failed for {name} in {file_path}: {e}"
+                    )
+                    calls, inherits = [], []
+
                 yield {
                     "entity_type": entity_type,
                     "name": name,
@@ -434,7 +451,126 @@ class TreeSitterIndexer:
                     "line_end": def_node.end_point[0] + 1,
                     "signature": signature,
                     "docstring": docstring,
+                    "calls": calls,
+                    "inherits": inherits,
                 }
+
+    # Call-site node types across the supported grammars.
+    CALL_NODES = frozenset(
+        {
+            "invocation_expression",  # csharp
+            "object_creation_expression",  # csharp -- new Foo()
+            "call_expression",  # js, ts, tsx, go, rust, c, cpp
+            "new_expression",  # js, ts
+            "call",  # python, ruby
+            "method_invocation",  # java
+            "method_call",  # ruby
+            "function_call_expression",  # php
+        }
+    )
+
+    # Node types holding the base/parent list of a type declaration.
+    BASE_NODES = frozenset(
+        {
+            "base_list",  # csharp
+            "class_heritage",  # js, ts, tsx
+            "superclass",  # java
+            "super_interfaces",  # java
+            "extends_clause",
+            "implements_clause",
+            "delegation_specifier",  # kotlin
+            "argument_list",  # python -- superclasses field
+        }
+    )
+
+    # Identifier node types that can carry a symbol name.
+    NAME_NODES = frozenset(
+        {
+            "identifier",
+            "type_identifier",
+            "property_identifier",
+            "field_identifier",
+            "simple_identifier",
+            "constant",
+            "name",
+        }
+    )
+
+    CALLS_FOR_TYPES = frozenset({"function", "method"})
+    BASES_FOR_TYPES = frozenset({"class", "interface", "struct", "impl", "trait"})
+
+    MAX_CALLS_PER_ENTITY = 120
+
+    def _callee_name(self, call_node) -> str | None:
+        """Resolve the invoked symbol from a call-site node.
+
+        Handles bare calls (``Foo()``) and member calls (``a.b.Foo()``), where the
+        useful symbol is the trailing name rather than the receiver chain.
+        """
+        target = None
+        for field in ("function", "constructor", "name", "callee"):
+            target = call_node.child_by_field_name(field)
+            if target is not None:
+                break
+        if target is None:
+            return None
+
+        for field in ("name", "property", "attribute", "field"):
+            inner = target.child_by_field_name(field)
+            if inner is not None:
+                target = inner
+                break
+
+        if target.type in self.NAME_NODES:
+            return target.text.decode("utf-8", errors="replace")
+
+        last = None
+        for child in target.children:
+            if child.type in self.NAME_NODES:
+                last = child
+        if last is not None:
+            return last.text.decode("utf-8", errors="replace")
+        return None
+
+    def _extract_calls(self, node) -> list[str]:
+        """Collect distinct symbols invoked inside a definition's subtree."""
+        found: list[str] = []
+        seen: set[str] = set()
+        stack = [node]
+        while stack:
+            current = stack.pop()
+            if current.type in self.CALL_NODES:
+                name = self._callee_name(current)
+                if name and name not in seen and len(name) < 128:
+                    seen.add(name)
+                    found.append(name)
+                    if len(found) >= self.MAX_CALLS_PER_ENTITY:
+                        return found
+            stack.extend(current.children)
+        return found
+
+    def _extract_inherits(self, node) -> list[str]:
+        """Collect base classes and implemented interfaces of a type declaration."""
+        bases: list[str] = []
+        seen: set[str] = set()
+
+        candidates = [child for child in node.children if child.type in self.BASE_NODES]
+        for field in ("superclasses", "superclass", "interfaces"):
+            field_node = node.child_by_field_name(field)
+            if field_node is not None:
+                candidates.append(field_node)
+
+        for holder in candidates:
+            stack = [holder]
+            while stack:
+                current = stack.pop()
+                if current.type in self.NAME_NODES:
+                    name = current.text.decode("utf-8", errors="replace")
+                    if name and name not in seen:
+                        seen.add(name)
+                        bases.append(name)
+                stack.extend(current.children)
+        return bases
 
     def _is_descendant(self, ancestor, node) -> bool:
         """Check if node is a descendant of ancestor."""
@@ -688,10 +824,10 @@ class TreeSitterIndexer:
             "line_end": kwargs.get("line_end"),
             "signature": kwargs.get("signature"),
             "docstring": kwargs.get("docstring"),
-            "calls": [],
+            "calls": kwargs.get("calls", []),
             "called_by": [],
             "imports": kwargs.get("imports", []),
-            "inherits": [],
+            "inherits": kwargs.get("inherits", []),
             "indexed_at": datetime.now(timezone.utc),
         }
 
