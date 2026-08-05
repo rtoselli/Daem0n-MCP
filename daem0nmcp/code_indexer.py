@@ -748,6 +748,19 @@ class CodeIndexManager:
         ".nyc_output",
         ".daem0nmcp",
         ".devilmcp",
+        # Compiler output -- generated sources that duplicate real entities
+        "bin",
+        "obj",
+        "TestResults",
+        # Git worktrees and agent scratch checkouts hold near-identical copies
+        # of the tree, which would multiply every entity by the worktree count
+        ".worktrees",
+        "worktrees",
+        ".claude",
+        # Editor metadata
+        ".vs",
+        ".vscode",
+        ".idea",
     }
 
     def __init__(self, db=None, qdrant=None):
