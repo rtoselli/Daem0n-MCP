@@ -40,7 +40,7 @@ LANGUAGE_CONFIG = {
     ".cpp": "cpp",
     ".hpp": "cpp",
     ".cc": "cpp",
-    ".cs": "c_sharp",
+    ".cs": "csharp",
 }
 
 # Tree-sitter queries for extracting entities (language-specific)
@@ -123,7 +123,7 @@ ENTITY_QUERIES = {
         (struct_specifier
             name: (type_identifier) @struct.name) @struct.def
     """,
-    "c_sharp": """
+    "csharp": """
         (class_declaration
             name: (identifier) @class.name) @class.def
         (interface_declaration
@@ -463,7 +463,7 @@ class TreeSitterIndexer:
             # Language-specific docstring extraction
             if lang == "python":
                 return self._extract_python_docstring(node, source)
-            elif lang in ("javascript", "typescript", "tsx", "java", "c_sharp"):
+            elif lang in ("javascript", "typescript", "tsx", "java", "csharp"):
                 return self._extract_jsdoc(node, source)
             elif lang == "go":
                 return self._extract_go_comment(node, source)
