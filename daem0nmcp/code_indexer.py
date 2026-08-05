@@ -881,6 +881,7 @@ class CodeIndexManager:
         ".nuxt",
         ".output",
         "coverage",
+        "coverage-report",
         ".nyc_output",
         ".daem0nmcp",
         ".devilmcp",
