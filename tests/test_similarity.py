@@ -1,5 +1,6 @@
 """Tests for the TF-IDF similarity engine."""
 
+import math
 from datetime import datetime, timedelta, timezone
 
 from daem0nmcp.similarity import (
@@ -364,3 +365,45 @@ class TestTFIDFVectorCaching:
         # Both should be in cache with different keys
         assert "hello|tag1" in index._query_cache
         assert "hello|tag2" in index._query_cache
+
+
+class ScanForbiddenDocuments(dict):
+    def values(self):
+        raise AssertionError("IDF must not rescan every document")
+
+
+def expected_idf(doc_count: int, doc_freq: int) -> float:
+    return math.log((doc_count + 1) / (doc_freq + 1)) + 1
+
+
+class TestIncrementalDocumentFrequency:
+    def test_search_does_not_rescan_documents_per_term(self):
+        index = TFIDFIndex()
+        index.add_document(1, "JWT tokens for authentication")
+        index.add_document(2, "OAuth flow for authorization")
+        index.add_document(3, "Database connection pooling")
+        index.documents = ScanForbiddenDocuments(index.documents)
+
+        results = index.search("JWT authentication")
+
+        assert results[0][0] == 1
+
+    def test_idf_follows_a_document_readded_under_the_same_id(self):
+        index = TFIDFIndex()
+        index.add_document(1, "jwt tokens")
+        index.add_document(2, "oauth flow")
+
+        index.add_document(1, "oauth refresh")
+
+        assert index._compute_idf("jwt") == 0.0
+        assert index._compute_idf("oauth") == expected_idf(2, 2)
+
+    def test_idf_drops_terms_of_a_removed_document(self):
+        index = TFIDFIndex()
+        index.add_document(1, "jwt tokens")
+        index.add_document(2, "jwt oauth")
+
+        index.remove_document(1)
+
+        assert index._compute_idf("tokens") == 0.0
+        assert index._compute_idf("jwt") == expected_idf(1, 1)

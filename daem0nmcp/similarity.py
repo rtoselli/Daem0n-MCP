@@ -342,6 +342,7 @@ class TFIDFIndex:
             int, dict[str, float]
         ] = {}  # doc_id -> {term: tfidf}
         self.idf_cache: dict[str, float] = {}
+        self.doc_freq: Counter[str] = Counter()
         self.doc_count = 0
         # Query vector cache with LRU eviction
         self._query_cache: dict[str, dict[str, float]] = {}
@@ -360,18 +361,30 @@ class TFIDFIndex:
                 tag_tokens = tokenize(tag)
                 tokens.extend(tag_tokens * 3)  # Tags get 3x weight
 
+        self._forget_document_terms(doc_id)
         self.documents[doc_id] = tokens
+        self.doc_freq.update(set(tokens))
         self.doc_count = len(self.documents)
         self._invalidate_cache()
 
     def remove_document(self, doc_id: int) -> None:
         """Remove a document from the index."""
         if doc_id in self.documents:
+            self._forget_document_terms(doc_id)
             del self.documents[doc_id]
             if doc_id in self.document_vectors:
                 del self.document_vectors[doc_id]
             self.doc_count = len(self.documents)
             self._invalidate_cache()
+
+    def _forget_document_terms(self, doc_id: int) -> None:
+        previous_tokens = self.documents.get(doc_id)
+        if previous_tokens is None:
+            return
+        for term in set(previous_tokens):
+            self.doc_freq[term] -= 1
+            if self.doc_freq[term] <= 0:
+                del self.doc_freq[term]
 
     def _invalidate_cache(self) -> None:
         """Clear cached computations."""
@@ -385,7 +398,7 @@ class TFIDFIndex:
         if term in self.idf_cache:
             return self.idf_cache[term]
 
-        doc_freq = sum(1 for tokens in self.documents.values() if term in tokens)
+        doc_freq = self.doc_freq.get(term, 0)
 
         if doc_freq == 0:
             idf = 0.0
